@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PTT Forum Trend Analyzer Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #181b22;
+    --border: #2a2e38;
+    --text: #e6e8eb;
+    --muted: #9aa0a6;
+    --accent: #3b6e9e;
+    --push: #3aa657;
+    --boo: #d9534f;
+    --neutral: #9aa0a6;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, "Segoe UI", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  header {
+    padding: 20px 28px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  header h1 {
+    font-size: 20px;
+    margin: 0;
+    font-weight: 600;
+  }
+  header span {
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .container {
+    padding: 24px 28px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  .summary-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+  }
+  .card .value {
+    font-size: 28px;
+    font-weight: 700;
+  }
+  .card .label {
+    color: var(--muted);
+    font-size: 13px;
+    margin-top: 4px;
+  }
+  .chart-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .chart-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+  }
+  .chart-card h3 {
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    color: var(--muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .search-bar {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .search-bar input, .search-bar select {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 14px;
+  }
+  .search-bar input {
+    flex: 1;
+  }
+  .search-bar button {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  th, td {
+    text-align: left;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+  }
+  th {
+    color: var(--muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 12px;
+    letter-spacing: 0.03em;
+  }
+  tr:last-child td {
+    border-bottom: none;
+  }
+  tr:hover {
+    background: #1f232c;
+  }
+  .board-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    background: #25303d;
+    color: #7fb3d9;
+  }
+  .sentiment-pos { color: var(--push); }
+  .sentiment-neg { color: var(--boo); }
+  .sentiment-neu { color: var(--neutral); }
+  .error-box {
+    background: #3a1f1f;
+    border: 1px solid #6e3030;
+    color: #f0b0b0;
+    padding: 16px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+  }
+  .section-title {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 0 0 14px 0;
+    color: var(--text);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>PTT Forum Trend Analyzer</h1>
+  <span id="status-text">Loading...</span>
+</header>
+
+<div class="container">
+
+  <div id="error-area"></div>
+
+  <div class="summary-row">
+    <div class="card">
+      <div class="value" id="stat-posts">-</div>
+      <div class="label">Total posts</div>
+    </div>
+    <div class="card">
+      <div class="value" id="stat-comments">-</div>
+      <div class="label">Total comments</div>
+    </div>
+    <div class="card">
+      <div class="value" id="stat-boards">-</div>
+      <div class="label">Boards tracked</div>
+    </div>
+    <div class="card">
+      <div class="value" id="stat-sentiment">-</div>
+      <div class="label">Average sentiment</div>
+    </div>
+  </div>
+
+  <div class="chart-row">
+    <div class="chart-card">
+      <h3>Sentiment distribution</h3>
+      <canvas id="chart-sentiment" height="220"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>Board comparison: avg sentiment</h3>
+      <canvas id="chart-boards" height="220"></canvas>
+    </div>
+  </div>
+
+  <div class="chart-row">
+    <div class="chart-card">
+      <h3>Top keywords</h3>
+      <canvas id="chart-keywords" height="220"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>Top posters</h3>
+      <canvas id="chart-posters" height="220"></canvas>
+    </div>
+  </div>
+
+  <p class="section-title">Search posts</p>
+  <div class="search-bar">
+    <input type="text" id="search-input" placeholder="Search title or content...">
+    <select id="board-filter">
+      <option value="">All boards</option>
+      <option value="Gossiping">Gossiping</option>
+      <option value="Tech_Job">Tech_Job</option>
+      <option value="Soft_Job">Soft_Job</option>
+    </select>
+    <button onclick="runSearch()">Search</button>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Board</th>
+        <th>Title</th>
+        <th>Author</th>
+        <th>Push</th>
+        <th>Boo</th>
+        <th>Sentiment</th>
+      </tr>
+    </thead>
+    <tbody id="posts-table-body">
+    </tbody>
+  </table>
+
+</div>
+
+<script>
+const API = "";
+
+function sentimentClass(s) {
+  if (s > 0.2) return "sentiment-pos";
+  if (s < -0.2) return "sentiment-neg";
+  return "sentiment-neu";
+}
+
+async function fetchJSON(url) {
+  const res = await fetch(url);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || ("Request failed: " + url));
+  }
+  return res.json();
+}
+
+function showError(message) {
+  const box = document.getElementById("error-area");
+  box.innerHTML = '<div class="error-box">' + message + '</div>';
+}
+
+function renderPostsTable(posts) {
+  const body = document.getElementById("posts-table-body");
+  body.innerHTML = "";
+  posts.forEach(p => {
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td><span class="board-tag">${p.board}</span></td>
+      <td>${p.title}</td>
+      <td>${p.author}</td>
+      <td>${p.push_count}</td>
+      <td>${p.boo_count}</td>
+      <td class="${sentimentClass(p.sentiment)}">${Number(p.sentiment).toFixed(2)}</td>
+    `;
+    body.appendChild(row);
+  });
+}
+
+async function loadSummary() {
+  const data = await fetchJSON(API + "/api/summary");
+  document.getElementById("stat-posts").textContent = data.total_posts;
+  document.getElementById("stat-comments").textContent = data.total_comments;
+  document.getElementById("stat-boards").textContent = data.total_boards;
+  document.getElementById("stat-sentiment").textContent = data.avg_sentiment;
+}
+
+async function loadPosts() {
+  const posts = await fetchJSON(API + "/api/posts?limit=30");
+  renderPostsTable(posts);
+}
+
+async function loadSentimentChart() {
+  const data = await fetchJSON(API + "/api/sentiment-distribution");
+  new Chart(document.getElementById("chart-sentiment"), {
+    type: "doughnut",
+    data: {
+      labels: ["Positive", "Neutral", "Negative"],
+      datasets: [{
+        data: [data.positive, data.neutral, data.negative],
+        backgroundColor: ["#3aa657", "#9aa0a6", "#d9534f"]
+      }]
+    },
+    options: { plugins: { legend: { labels: { color: "#e6e8eb" } } } }
+  });
+}
+
+async function loadBoardChart() {
+  const data = await fetchJSON(API + "/api/board-comparison");
+  new Chart(document.getElementById("chart-boards"), {
+    type: "bar",
+    data: {
+      labels: data.map(d => d.board),
+      datasets: [{
+        label: "Avg sentiment",
+        data: data.map(d => d.avg_sentiment),
+        backgroundColor: "#3b6e9e"
+      }]
+    },
+    options: {
+      scales: {
+        x: { ticks: { color: "#9aa0a6" } },
+        y: { ticks: { color: "#9aa0a6" } }
+      },
+      plugins: { legend: { display: false } }
+    }
+  });
+}
+
+async function loadKeywordsChart() {
+  const data = await fetchJSON(API + "/api/keywords?limit=10");
+  new Chart(document.getElementById("chart-keywords"), {
+    type: "bar",
+    data: {
+      labels: data.map(d => d.keyword),
+      datasets: [{
+        label: "Frequency",
+        data: data.map(d => d.total),
+        backgroundColor: "#6a4fb5"
+      }]
+    },
+    options: {
+      indexAxis: "y",
+      scales: {
+        x: { ticks: { color: "#9aa0a6" } },
+        y: { ticks: { color: "#9aa0a6" } }
+      },
+      plugins: { legend: { display: false } }
+    }
+  });
+}
+
+async function loadPostersChart() {
+  const data = await fetchJSON(API + "/api/top-posters?limit=8");
+  new Chart(document.getElementById("chart-posters"), {
+    type: "bar",
+    data: {
+      labels: data.map(d => d.author),
+      datasets: [{
+        label: "Post count",
+        data: data.map(d => d.post_count),
+        backgroundColor: "#e08e45"
+      }]
+    },
+    options: {
+      scales: {
+        x: { ticks: { color: "#9aa0a6" } },
+        y: { ticks: { color: "#9aa0a6" } }
+      },
+      plugins: { legend: { display: false } }
+    }
+  });
+}
+
+async function runSearch() {
+  const q = document.getElementById("search-input").value.trim();
+  const board = document.getElementById("board-filter").value;
+
+  if (!q && !board) {
+    loadPosts();
+    return;
+  }
+
+  let url;
+  if (q) {
+    url = API + "/api/search?q=" + encodeURIComponent(q);
+  } else {
+    url = API + "/api/posts?board=" + encodeURIComponent(board);
+  }
+
+  const posts = await fetchJSON(url);
+  renderPostsTable(posts);
+}
+
+async function init() {
+  try {
+    const status = await fetchJSON(API + "/api/status");
+    if (!status.db_found) {
+      showError("Database not found at " + status.db_path + ". Run python3 ptt_analyzer.py first, then refresh this page.");
+      document.getElementById("status-text").textContent = "No data";
+      return;
+    }
+    document.getElementById("status-text").textContent = "Connected to " + status.db_path;
+
+    await Promise.all([
+      loadSummary(),
+      loadPosts(),
+      loadSentimentChart(),
+      loadBoardChart(),
+      loadKeywordsChart(),
+      loadPostersChart()
+    ]);
+  } catch (err) {
+    showError(err.message);
+  }
+}
+
+init();
+</script>
+
+</body>
+</html>

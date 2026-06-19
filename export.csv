@@ -1,0 +1,19 @@
+post_id,board,title,author,date,content,url,push_count,boo_count,neutral_count,sentiment,crawled_at
+M.1700000001.A.001,Gossiping,[問卦] 台北房價會不會崩盤,user001,6/10,AI 薪水 面試 加班 股市 房價 新創,https://www.ptt.cc/bbs/Gossiping/M.1700000001.A.001.html,7,3,2,0.4,2026-06-19T11:46:49.222419
+M.1700000002.A.002,Gossiping,[新聞] AI 取代工程師話題再起,user002,6/11,遠端工作,https://www.ptt.cc/bbs/Gossiping/M.1700000002.A.002.html,14,6,4,0.4,2026-06-19T11:46:49.224420
+M.1700000003.A.003,Gossiping,[爆卦] 今天股市大跌,user003,6/12,Python 電動車,https://www.ptt.cc/bbs/Gossiping/M.1700000003.A.003.html,21,9,6,0.4,2026-06-19T11:46:49.225421
+M.1700000004.A.004,Gossiping,[問卦] 大家覺得電動車如何,user004,6/13,AI 薪水 面試 加班 股市 房價 新創,https://www.ptt.cc/bbs/Gossiping/M.1700000004.A.004.html,28,12,8,0.4,2026-06-19T11:46:49.225421
+M.1700000005.A.005,Gossiping,[心情] 工作壓力好大,user005,6/14,遠端工作,https://www.ptt.cc/bbs/Gossiping/M.1700000005.A.005.html,35,0,0,1.0,2026-06-19T11:46:49.225421
+M.1700000006.A.006,Gossiping,[新聞] 政府宣布新政策,user006,6/10,Python 電動車,https://www.ptt.cc/bbs/Gossiping/M.1700000006.A.006.html,2,3,2,-0.2,2026-06-19T11:46:49.225421
+M.1700000007.A.007,Tech_Job,[請益] 新竹軟體工程師薪水水平,user007,6/10,AI 薪水 面試 加班 股市 房價 新創,https://www.ptt.cc/bbs/Tech_Job/M.1700000007.A.007.html,9,6,4,0.2,2026-06-19T11:46:49.228419
+M.1700000008.A.008,Tech_Job,[討論] Python 還是 Java 比較好找工作,user008,6/11,遠端工作,https://www.ptt.cc/bbs/Tech_Job/M.1700000008.A.008.html,16,9,6,0.28,2026-06-19T11:46:49.229930
+M.1700000009.A.009,Tech_Job,[心得] 面試心得分享 Google,user009,6/12,Python 電動車,https://www.ptt.cc/bbs/Tech_Job/M.1700000009.A.009.html,23,12,8,0.3142857142857143,2026-06-19T11:46:49.230943
+M.1700000010.A.010,Tech_Job,[請益] 轉職資料科學家方向,user010,6/13,AI 薪水 面試 加班 股市 房價 新創,https://www.ptt.cc/bbs/Tech_Job/M.1700000010.A.010.html,30,0,0,1.0,2026-06-19T11:46:49.230943
+M.1700000011.A.011,Tech_Job,[討論] 遠端工作好還是辦公室好,user011,6/14,遠端工作,https://www.ptt.cc/bbs/Tech_Job/M.1700000011.A.011.html,37,3,2,0.85,2026-06-19T11:46:49.230943
+M.1700000012.A.012,Tech_Job,[心得] 跳槽加薪經驗,user012,6/10,Python 電動車,https://www.ptt.cc/bbs/Tech_Job/M.1700000012.A.012.html,4,6,4,-0.2,2026-06-19T11:46:49.230943
+M.1700000013.A.013,Soft_Job,[討論] 軟體業加班文化,user013,6/10,AI 薪水 面試 加班 股市 房價 新創,https://www.ptt.cc/bbs/Soft_Job/M.1700000013.A.013.html,11,9,6,0.1,2026-06-19T11:46:49.232946
+M.1700000014.A.014,Soft_Job,[請益] 後端工程師職涯規劃,user014,6/11,遠端工作,https://www.ptt.cc/bbs/Soft_Job/M.1700000014.A.014.html,18,12,8,0.2,2026-06-19T11:46:49.233941
+M.1700000015.A.015,Soft_Job,[心得] 自學程式心得,user015,6/12,Python 電動車,https://www.ptt.cc/bbs/Soft_Job/M.1700000015.A.015.html,25,0,0,1.0,2026-06-19T11:46:49.234942
+M.1700000016.A.016,Soft_Job,[討論] 新創公司 vs 大公司,user016,6/13,AI 薪水 面試 加班 股市 房價 新創,https://www.ptt.cc/bbs/Soft_Job/M.1700000016.A.016.html,32,3,2,0.8285714285714286,2026-06-19T11:46:49.234942
+M.1700000017.A.017,Soft_Job,[請益] 想轉職前端工程師,user017,6/14,遠端工作,https://www.ptt.cc/bbs/Soft_Job/M.1700000017.A.017.html,39,6,4,0.7333333333333333,2026-06-19T11:46:49.234942
+M.1700000018.A.018,Soft_Job,[心得] 工作三年回顧,user018,6/10,Python 電動車,https://www.ptt.cc/bbs/Soft_Job/M.1700000018.A.018.html,6,9,6,-0.2,2026-06-19T11:46:49.234942
