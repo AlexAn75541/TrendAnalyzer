@@ -1,5 +1,6 @@
 FROM python:3.11-slim
 
+
 WORKDIR /app
 
 # Install CJK fonts to prevent matplotlib rendering errors
