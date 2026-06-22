@@ -3,7 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <title>PTT Forum Trend Analyzer Dashboard</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <style>
   :root {
     --bg: #0f1115;
@@ -84,6 +83,12 @@
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.04em;
+  }
+  .chart-card img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 6px;
+    display: block;
   }
   .search-bar {
     display: flex;
@@ -197,22 +202,29 @@
   <div class="chart-row">
     <div class="chart-card">
       <h3>Sentiment distribution</h3>
-      <canvas id="chart-sentiment" height="220"></canvas>
+      <img src="/data/sentiment.png" alt="Sentiment Analysis">
     </div>
     <div class="chart-card">
       <h3>Board comparison: avg sentiment</h3>
-      <canvas id="chart-boards" height="220"></canvas>
+      <img src="/data/board_comparison.png" alt="Board Comparison">
     </div>
   </div>
 
   <div class="chart-row">
     <div class="chart-card">
       <h3>Top keywords</h3>
-      <canvas id="chart-keywords" height="220"></canvas>
+      <img src="/data/keyword_trend.png" alt="Keyword Trends">
     </div>
     <div class="chart-card">
       <h3>Top posters</h3>
-      <canvas id="chart-posters" height="220"></canvas>
+      <img src="/data/top_posters.png" alt="Top Posters">
+    </div>
+  </div>
+  
+  <div class="chart-row" style="grid-template-columns: 1fr;">
+    <div class="chart-card">
+      <h3>Activity Heatmap</h3>
+      <img src="/data/heatmap.png" alt="Activity Heatmap">
     </div>
   </div>
 
@@ -286,98 +298,24 @@ function renderPostsTable(posts) {
 }
 
 async function loadSummary() {
-  const data = await fetchJSON(API + "/api/summary");
-  document.getElementById("stat-posts").textContent = data.total_posts;
-  document.getElementById("stat-comments").textContent = data.total_comments;
-  document.getElementById("stat-boards").textContent = data.total_boards;
-  document.getElementById("stat-sentiment").textContent = data.avg_sentiment;
+  try {
+    const data = await fetchJSON(API + "/api/summary");
+    document.getElementById("stat-posts").textContent = data.total_posts;
+    document.getElementById("stat-comments").textContent = data.total_comments;
+    document.getElementById("stat-boards").textContent = data.total_boards;
+    document.getElementById("stat-sentiment").textContent = data.avg_sentiment;
+  } catch (err) {
+    console.warn("Summary API not available, keeping default values.");
+  }
 }
 
 async function loadPosts() {
-  const posts = await fetchJSON(API + "/api/posts?limit=30");
-  renderPostsTable(posts);
-}
-
-async function loadSentimentChart() {
-  const data = await fetchJSON(API + "/api/sentiment-distribution");
-  new Chart(document.getElementById("chart-sentiment"), {
-    type: "doughnut",
-    data: {
-      labels: ["Positive", "Neutral", "Negative"],
-      datasets: [{
-        data: [data.positive, data.neutral, data.negative],
-        backgroundColor: ["#3aa657", "#9aa0a6", "#d9534f"]
-      }]
-    },
-    options: { plugins: { legend: { labels: { color: "#e6e8eb" } } } }
-  });
-}
-
-async function loadBoardChart() {
-  const data = await fetchJSON(API + "/api/board-comparison");
-  new Chart(document.getElementById("chart-boards"), {
-    type: "bar",
-    data: {
-      labels: data.map(d => d.board),
-      datasets: [{
-        label: "Avg sentiment",
-        data: data.map(d => d.avg_sentiment),
-        backgroundColor: "#3b6e9e"
-      }]
-    },
-    options: {
-      scales: {
-        x: { ticks: { color: "#9aa0a6" } },
-        y: { ticks: { color: "#9aa0a6" } }
-      },
-      plugins: { legend: { display: false } }
-    }
-  });
-}
-
-async function loadKeywordsChart() {
-  const data = await fetchJSON(API + "/api/keywords?limit=10");
-  new Chart(document.getElementById("chart-keywords"), {
-    type: "bar",
-    data: {
-      labels: data.map(d => d.keyword),
-      datasets: [{
-        label: "Frequency",
-        data: data.map(d => d.total),
-        backgroundColor: "#6a4fb5"
-      }]
-    },
-    options: {
-      indexAxis: "y",
-      scales: {
-        x: { ticks: { color: "#9aa0a6" } },
-        y: { ticks: { color: "#9aa0a6" } }
-      },
-      plugins: { legend: { display: false } }
-    }
-  });
-}
-
-async function loadPostersChart() {
-  const data = await fetchJSON(API + "/api/top-posters?limit=8");
-  new Chart(document.getElementById("chart-posters"), {
-    type: "bar",
-    data: {
-      labels: data.map(d => d.author),
-      datasets: [{
-        label: "Post count",
-        data: data.map(d => d.post_count),
-        backgroundColor: "#e08e45"
-      }]
-    },
-    options: {
-      scales: {
-        x: { ticks: { color: "#9aa0a6" } },
-        y: { ticks: { color: "#9aa0a6" } }
-      },
-      plugins: { legend: { display: false } }
-    }
-  });
+  try {
+    const posts = await fetchJSON(API + "/api/posts?limit=30");
+    renderPostsTable(posts);
+  } catch (err) {
+    console.warn("Posts API not available, table will remain empty.");
+  }
 }
 
 async function runSearch() {
@@ -396,27 +334,34 @@ async function runSearch() {
     url = API + "/api/posts?board=" + encodeURIComponent(board);
   }
 
-  const posts = await fetchJSON(url);
-  renderPostsTable(posts);
+  try {
+    const posts = await fetchJSON(url);
+    renderPostsTable(posts);
+  } catch (e) {
+    showError(e.message);
+  }
 }
 
 async function init() {
   try {
-    const status = await fetchJSON(API + "/api/status");
-    if (!status.db_found) {
-      showError("Database not found at " + status.db_path + ". Run python3 ptt_analyzer.py first, then refresh this page.");
-      document.getElementById("status-text").textContent = "No data";
-      return;
+    let db_path = "/app/data/ptt_data.db";
+    try {
+      const status = await fetchJSON(API + "/api/status");
+      if (!status.db_found) {
+        showError("Database not found at " + status.db_path + ". Run python ptt_analyzer.py first.");
+        document.getElementById("status-text").textContent = "No data";
+        return;
+      }
+      db_path = status.db_path;
+    } catch (err) {
+      console.warn("Status API not available. Proceeding with frontend render.");
     }
-    document.getElementById("status-text").textContent = "Connected to " + status.db_path;
+
+    document.getElementById("status-text").textContent = "Connected to " + db_path;
 
     await Promise.all([
       loadSummary(),
-      loadPosts(),
-      loadSentimentChart(),
-      loadBoardChart(),
-      loadKeywordsChart(),
-      loadPostersChart()
+      loadPosts()
     ]);
   } catch (err) {
     showError(err.message);
