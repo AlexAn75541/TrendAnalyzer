@@ -11,9 +11,13 @@ Then open: http://127.0.0.1:5000
 from flask import Flask, render_template, jsonify, request, send_from_directory
 import sqlite3
 import os
+import json
+import pandas as pd
 
 DATA_DIR = os.environ.get("DATA_DIR", ".")
+JSON_PATH = os.path.join(DATA_DIR, "export.json")
 DB_PATH = os.path.join(DATA_DIR, "ptt_data.db")
+CSV_PATH = os.path.join(DATA_DIR, "export.csv")
 
 app = Flask(__name__)
 
@@ -238,6 +242,21 @@ def api_top_posters():
     rows = [dict(r) for r in cur.fetchall()]
     conn.close()
     return jsonify(rows)
+
+@app.route("/api/stats")
+def get_stats():
+    if not os.path.exists(JSON_PATH):
+        return jsonify({"error": "Data missing"}), 503
+    with open(JSON_PATH, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    return jsonify({"total_posts": len(data)})
+
+@app.route("/api/csv")
+def get_csv_data():
+    if not os.path.exists(CSV_PATH):
+        return jsonify({"error": "Data missing"}), 503
+    df = pd.read_csv(CSV_PATH)
+    return df.to_json(orient="records")
 
 if __name__ == "__main__":
     if not db_exists():
