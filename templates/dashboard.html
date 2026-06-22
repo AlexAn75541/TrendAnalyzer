@@ -1,264 +1,294 @@
-"""
-Web dashboard for the PTT Forum Trend Analyzer.
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PTT Forum Trend Analyzer</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: "Segoe UI", sans-serif; background: #f4f6f9; color: #333; }
+    header { background: #2c3e50; color: #fff; padding: 16px 24px; }
+    header h1 { font-size: 1.4rem; }
+    header p  { font-size: 0.85rem; opacity: 0.75; margin-top: 2px; }
 
-Reads data from ptt_data.db (created by ptt_analyzer.py) and serves
-a browser dashboard with charts, search, and post listings.
+    .stats { display: flex; gap: 16px; flex-wrap: wrap; padding: 20px 24px; }
+    .stat-card { background: #fff; border-radius: 8px; padding: 16px 24px;
+                 flex: 1; min-width: 160px; box-shadow: 0 1px 4px rgba(0,0,0,.1); }
+    .stat-card .label { font-size: 0.78rem; color: #888; text-transform: uppercase; letter-spacing: .05em; }
+    .stat-card .value { font-size: 2rem; font-weight: 700; margin-top: 4px; color: #2c3e50; }
 
-Run with: python3 web_dashboard.py
-Then open: http://127.0.0.1:5000
-"""
+    .section { padding: 0 24px 24px; }
+    .section h2 { font-size: 1rem; font-weight: 600; margin-bottom: 12px; color: #2c3e50; }
 
-from flask import Flask, render_template, jsonify, request, send_from_directory
-import sqlite3
-import os
-import json
-import pandas as pd
+    .charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+    .chart-card { background: #fff; border-radius: 8px; padding: 16px;
+                  box-shadow: 0 1px 4px rgba(0,0,0,.1); }
+    .chart-card h3 { font-size: 0.85rem; color: #555; margin-bottom: 10px; }
 
-DATA_DIR = os.environ.get("DATA_DIR", ".")
-JSON_PATH = os.path.join(DATA_DIR, "export.json")
-DB_PATH = os.path.join(DATA_DIR, "ptt_data.db")
-CSV_PATH = os.path.join(DATA_DIR, "export.csv")
+    /* inline bar charts */
+    .bar-row { display: flex; align-items: center; margin-bottom: 6px; font-size: 0.82rem; }
+    .bar-label { width: 140px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .bar-track { flex: 1; background: #eee; border-radius: 4px; height: 14px; margin: 0 8px; }
+    .bar-fill  { height: 14px; border-radius: 4px; background: #3b6e9e; }
+    .bar-val   { width: 36px; text-align: right; color: #666; }
 
-app = Flask(__name__)
+    .sentiment-pos { background: #3aa657; }
+    .sentiment-neu { background: #9aa0a6; }
+    .sentiment-neg { background: #d9534f; }
 
-def get_connection():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+    /* search + table */
+    .toolbar { display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+    .toolbar input, .toolbar select {
+      padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px;
+      font-size: 0.9rem; flex: 1; min-width: 180px;
+    }
+    .toolbar button {
+      padding: 8px 18px; background: #2c3e50; color: #fff;
+      border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem;
+    }
+    .toolbar button:hover { background: #3d5166; }
 
-def db_exists():
-    return os.path.exists(DB_PATH)
+    table { width: 100%; border-collapse: collapse; background: #fff;
+            border-radius: 8px; overflow: hidden;
+            box-shadow: 0 1px 4px rgba(0,0,0,.1); font-size: 0.84rem; }
+    th { background: #2c3e50; color: #fff; padding: 10px 12px; text-align: left; }
+    td { padding: 9px 12px; border-bottom: 1px solid #f0f0f0; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #f8f9fa; }
 
-@app.route("/")
-def index():
-    return render_template("dashboard.html")
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 10px;
+             font-size: 0.75rem; font-weight: 600; }
+    .badge-pos { background: #d4edda; color: #155724; }
+    .badge-neu { background: #e2e3e5; color: #383d41; }
+    .badge-neg { background: #f8d7da; color: #721c24; }
 
-@app.route("/data/<filename>")
-def serve_data_files(filename):
-    return send_from_directory(DATA_DIR, filename)
+    #status-banner { display: none; background: #fff3cd; color: #856404;
+                     padding: 10px 24px; font-size: 0.85rem; border-bottom: 1px solid #ffc107; }
+  </style>
+</head>
+<body>
 
-@app.route("/api/status")
-def api_status():
-    """Check database connection status."""
-    return jsonify({
-        "db_found": db_exists(),
-        "db_path": DB_PATH
-    })
+<div id="status-banner"></div>
 
-@app.route("/api/summary")
-def api_summary():
-    """Overall counts: total posts, total comments, boards covered."""
-    if not db_exists():
-        return jsonify({"error": "Database not found. Run ptt_analyzer.py first."}), 404
+<header>
+  <h1>PTT Forum Trend Analyzer</h1>
+  <p>Discussion mining across Gossiping · Tech_Job · Soft_Job</p>
+</header>
 
-    conn = get_connection()
-    cur = conn.cursor()
+<!-- ── Summary stats ── -->
+<div class="stats" id="stats">
+  <div class="stat-card"><div class="label">Total Posts</div><div class="value" id="s-posts">—</div></div>
+  <div class="stat-card"><div class="label">Total Comments</div><div class="value" id="s-comments">—</div></div>
+  <div class="stat-card"><div class="label">Boards</div><div class="value" id="s-boards">—</div></div>
+  <div class="stat-card"><div class="label">Avg Sentiment</div><div class="value" id="s-sentiment">—</div></div>
+</div>
 
-    cur.execute("SELECT COUNT(*) AS c FROM posts")
-    total_posts = cur.fetchone()["c"]
+<!-- ── Charts row ── -->
+<div class="section">
+  <h2>Analysis</h2>
+  <div class="charts">
 
-    cur.execute("SELECT COUNT(*) AS c FROM comments")
-    total_comments = cur.fetchone()["c"]
+    <div class="chart-card">
+      <h3>Sentiment Distribution</h3>
+      <div id="chart-sentiment"></div>
+    </div>
 
-    cur.execute("SELECT COUNT(DISTINCT board) AS c FROM posts")
-    total_boards = cur.fetchone()["c"]
+    <div class="chart-card">
+      <h3>Board Comparison (avg sentiment)</h3>
+      <div id="chart-boards"></div>
+    </div>
 
-    cur.execute("SELECT AVG(sentiment) AS s FROM posts")
-    avg_sentiment = cur.fetchone()["s"] or 0
+    <div class="chart-card">
+      <h3>Top Keywords</h3>
+      <div id="chart-keywords"></div>
+    </div>
 
-    conn.close()
-    return jsonify({
-        "total_posts": total_posts,
-        "total_comments": total_comments,
-        "total_boards": total_boards,
-        "avg_sentiment": round(avg_sentiment, 3),
-    })
+    <div class="chart-card">
+      <h3>Top Posters</h3>
+      <div id="chart-posters"></div>
+    </div>
 
-@app.route("/api/posts")
-def api_posts():
-    """List posts, optionally filtered by board, sorted by engagement."""
-    if not db_exists():
-        return jsonify({"error": "Database not found. Run ptt_analyzer.py first."}), 404
+  </div>
+</div>
 
-    board = request.args.get("board")
-    limit = int(request.args.get("limit", 50))
+<!-- ── Post table ── -->
+<div class="section">
+  <h2>Posts</h2>
+  <div class="toolbar">
+    <input id="search-input" type="text" placeholder='Search (e.g. "AI" or "Python")' />
+    <select id="board-filter">
+      <option value="">All boards</option>
+      <option value="Gossiping">Gossiping</option>
+      <option value="Tech_Job">Tech_Job</option>
+      <option value="Soft_Job">Soft_Job</option>
+    </select>
+    <button onclick="doSearch()">Search</button>
+    <button onclick="loadPosts()">Reset</button>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Board</th><th>Title</th><th>Author</th><th>Date</th>
+        <th>👍</th><th>👎</th><th>Sentiment</th>
+      </tr>
+    </thead>
+    <tbody id="post-table-body"></tbody>
+  </table>
+</div>
 
-    conn = get_connection()
-    cur = conn.cursor()
+<script>
+  // ── helpers ──────────────────────────────────────────────────────────────
 
-    if board:
-        cur.execute("""
-            SELECT post_id, board, title, author, date, push_count, boo_count,
-                   neutral_count, sentiment
-            FROM posts WHERE board = ?
-            ORDER BY (push_count + boo_count) DESC
-            LIMIT ?
-        """, (board, limit))
-    else:
-        cur.execute("""
-            SELECT post_id, board, title, author, date, push_count, boo_count,
-                   neutral_count, sentiment
-            FROM posts
-            ORDER BY (push_count + boo_count) DESC
-            LIMIT ?
-        """, (limit,))
+  function sentimentBadge(s) {
+    if (s > 0.2)  return `<span class="badge badge-pos">+${s.toFixed(2)}</span>`;
+    if (s < -0.2) return `<span class="badge badge-neg">${s.toFixed(2)}</span>`;
+    return `<span class="badge badge-neu">${s.toFixed(2)}</span>`;
+  }
 
-    rows = [dict(r) for r in cur.fetchall()]
-    conn.close()
-    return jsonify(rows)
+  function barChart(container, rows, labelKey, valueKey, colorClass) {
+    const max = Math.max(...rows.map(r => r[valueKey]), 1);
+    container.innerHTML = rows.map(r => `
+      <div class="bar-row">
+        <span class="bar-label" title="${r[labelKey]}">${r[labelKey]}</span>
+        <div class="bar-track">
+          <div class="bar-fill ${colorClass || ''}" style="width:${(r[valueKey]/max*100).toFixed(1)}%"></div>
+        </div>
+        <span class="bar-val">${typeof r[valueKey] === 'number' ? r[valueKey].toFixed ? r[valueKey].toFixed(2) : r[valueKey] : r[valueKey]}</span>
+      </div>`).join('');
+  }
 
-@app.route("/api/post/<post_id>")
-def api_post_detail(post_id):
-    """Full detail for a single post, including its comments."""
-    if not db_exists():
-        return jsonify({"error": "Database not found."}), 404
+  function renderTable(posts) {
+    const tbody = document.getElementById('post-table-body');
+    if (!posts.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#888;padding:20px">No posts found.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = posts.map(p => `
+      <tr>
+        <td>${p.board}</td>
+        <td>${p.title}</td>
+        <td>${p.author}</td>
+        <td>${p.date || ''}</td>
+        <td>${p.push_count ?? ''}</td>
+        <td>${p.boo_count ?? ''}</td>
+        <td>${sentimentBadge(p.sentiment ?? 0)}</td>
+      </tr>`).join('');
+  }
 
-    conn = get_connection()
-    cur = conn.cursor()
+  // ── data loaders ─────────────────────────────────────────────────────────
 
-    cur.execute("SELECT * FROM posts WHERE post_id = ?", (post_id,))
-    post_row = cur.fetchone()
-    if not post_row:
-        conn.close()
-        return jsonify({"error": "Post not found"}), 404
+  async function checkStatus() {
+    try {
+      const r = await fetch('/api/status');
+      const d = await r.json();
+      if (!d.db_found) {
+        const b = document.getElementById('status-banner');
+        b.style.display = 'block';
+        b.textContent = '⚠ Database not found — run ptt_analyzer.py first, then restart the server.';
+      }
+    } catch (_) {}
+  }
 
-    cur.execute("SELECT comment_type, author, content, ip_time FROM comments WHERE post_id = ?", (post_id,))
-    comments = [dict(r) for r in cur.fetchall()]
+  async function loadSummary() {
+    try {
+      const d = await fetch('/api/summary').then(r => r.json());
+      document.getElementById('s-posts').textContent     = d.total_posts     ?? '—';
+      document.getElementById('s-comments').textContent  = d.total_comments  ?? '—';
+      document.getElementById('s-boards').textContent    = d.total_boards    ?? '—';
+      document.getElementById('s-sentiment').textContent = d.avg_sentiment != null ? d.avg_sentiment.toFixed(3) : '—';
+    } catch (_) {}
+  }
 
-    conn.close()
-    result = dict(post_row)
-    result["comments"] = comments
-    return jsonify(result)
+  async function loadSentimentChart() {
+    try {
+      const d = await fetch('/api/sentiment-distribution').then(r => r.json());
+      const rows = [
+        { label: 'Positive', value: d.positive, cls: 'sentiment-pos' },
+        { label: 'Neutral',  value: d.neutral,  cls: 'sentiment-neu' },
+        { label: 'Negative', value: d.negative, cls: 'sentiment-neg' },
+      ];
+      const max = Math.max(...rows.map(r => r.value), 1);
+      document.getElementById('chart-sentiment').innerHTML = rows.map(r => `
+        <div class="bar-row">
+          <span class="bar-label">${r.label}</span>
+          <div class="bar-track">
+            <div class="bar-fill ${r.cls}" style="width:${(r.value/max*100).toFixed(1)}%"></div>
+          </div>
+          <span class="bar-val">${r.value}</span>
+        </div>`).join('');
+    } catch (_) {}
+  }
 
-@app.route("/api/search")
-def api_search():
-    """Full-text search over post titles and content."""
-    query = request.args.get("q", "").strip()
-    if not query:
-        return jsonify([])
-    if not db_exists():
-        return jsonify({"error": "Database not found."}), 404
+  async function loadBoardChart() {
+    try {
+      const data = await fetch('/api/board-comparison').then(r => r.json());
+      barChart(
+        document.getElementById('chart-boards'),
+        data.map(b => ({ label: b.board, value: parseFloat(b.avg_sentiment.toFixed(3)) })),
+        'label', 'value'
+      );
+    } catch (_) {}
+  }
 
-    conn = get_connection()
-    cur = conn.cursor()
-    try:
-        cur.execute("""
-            SELECT posts.post_id, posts.board, posts.title, posts.author,
-                   posts.push_count, posts.boo_count, posts.sentiment
-            FROM posts
-            JOIN posts_fts ON posts.post_id = posts_fts.post_id
-            WHERE posts_fts MATCH ?
-        """, (query,))
-        rows = [dict(r) for r in cur.fetchall()]
-    except sqlite3.OperationalError:
-        cur.execute("""
-            SELECT post_id, board, title, author, push_count, boo_count, sentiment
-            FROM posts WHERE title LIKE ? OR content LIKE ?
-        """, (f"%{query}%", f"%{query}%"))
-        rows = [dict(r) for r in cur.fetchall()]
-    conn.close()
-    return jsonify(rows)
+  async function loadKeywordsChart() {
+    try {
+      const data = await fetch('/api/keywords?limit=10').then(r => r.json());
+      barChart(
+        document.getElementById('chart-keywords'),
+        data.map(k => ({ label: k.keyword, value: k.total })),
+        'label', 'value'
+      );
+    } catch (_) {}
+  }
 
-@app.route("/api/keywords")
-def api_keywords():
-    """Top keywords by total frequency across all posts."""
-    if not db_exists():
-        return jsonify({"error": "Database not found."}), 404
+  async function loadPostersChart() {
+    try {
+      const data = await fetch('/api/top-posters?limit=8').then(r => r.json());
+      barChart(
+        document.getElementById('chart-posters'),
+        data.map(p => ({ label: p.author, value: p.post_count })),
+        'label', 'value'
+      );
+    } catch (_) {}
+  }
 
-    limit = int(request.args.get("limit", 20))
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("""
-        SELECT keyword, SUM(frequency) AS total
-        FROM keywords
-        GROUP BY keyword
-        ORDER BY total DESC
-        LIMIT ?
-    """, (limit,))
-    rows = [dict(r) for r in cur.fetchall()]
-    conn.close()
-    return jsonify(rows)
+  async function loadPosts() {
+    const board = document.getElementById('board-filter').value;
+    const url   = board ? `/api/posts?board=${encodeURIComponent(board)}&limit=50` : '/api/posts?limit=50';
+    try {
+      const data = await fetch(url).then(r => r.json());
+      renderTable(Array.isArray(data) ? data : []);
+    } catch (_) { renderTable([]); }
+  }
 
-@app.route("/api/board-comparison")
-def api_board_comparison():
-    """Average sentiment, average engagement, and post count per board."""
-    if not db_exists():
-        return jsonify({"error": "Database not found."}), 404
+  async function doSearch() {
+    const q     = document.getElementById('search-input').value.trim();
+    const board = document.getElementById('board-filter').value;
+    if (!q) { loadPosts(); return; }
+    try {
+      let data = await fetch(`/api/search?q=${encodeURIComponent(q)}`).then(r => r.json());
+      if (board) data = data.filter(p => p.board === board);
+      renderTable(Array.isArray(data) ? data : []);
+    } catch (_) { renderTable([]); }
+  }
 
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("""
-        SELECT board,
-               COUNT(*) AS post_count,
-               AVG(sentiment) AS avg_sentiment,
-               AVG(push_count + boo_count) AS avg_engagement
-        FROM posts
-        GROUP BY board
-    """)
-    rows = [dict(r) for r in cur.fetchall()]
-    conn.close()
-    return jsonify(rows)
+  // allow Enter key in search box
+  document.getElementById('search-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') doSearch();
+  });
 
-@app.route("/api/sentiment-distribution")
-def api_sentiment_distribution():
-    """Bucket all posts into positive/neutral/negative sentiment counts."""
-    if not db_exists():
-        return jsonify({"error": "Database not found."}), 404
-
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("SELECT sentiment FROM posts")
-    sentiments = [r["sentiment"] for r in cur.fetchall()]
-    conn.close()
-
-    buckets = {"positive": 0, "neutral": 0, "negative": 0}
-    for s in sentiments:
-        if s > 0.2:
-            buckets["positive"] += 1
-        elif s < -0.2:
-            buckets["negative"] += 1
-        else:
-            buckets["neutral"] += 1
-
-    return jsonify(buckets)
-
-@app.route("/api/top-posters")
-def api_top_posters():
-    """Author activity ranking by post count."""
-    if not db_exists():
-        return jsonify({"error": "Database not found."}), 404
-
-    limit = int(request.args.get("limit", 10))
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("""
-        SELECT author, COUNT(*) AS post_count
-        FROM posts
-        GROUP BY author
-        ORDER BY post_count DESC
-        LIMIT ?
-    """, (limit,))
-    rows = [dict(r) for r in cur.fetchall()]
-    conn.close()
-    return jsonify(rows)
-
-@app.route("/api/stats")
-def get_stats():
-    if not os.path.exists(JSON_PATH):
-        return jsonify({"error": "Data missing"}), 503
-    with open(JSON_PATH, "r", encoding="utf-8") as f:
-        data = json.load(f)
-    return jsonify({"total_posts": len(data)})
-
-@app.route("/api/csv")
-def get_csv_data():
-    if not os.path.exists(CSV_PATH):
-        return jsonify({"error": "Data missing"}), 503
-    df = pd.read_csv(CSV_PATH)
-    return df.to_json(orient="records")
-
-if __name__ == "__main__":
-    if not db_exists():
-        print(f"Warning: {DB_PATH} not found.")
-        print("Run python3 ptt_analyzer.py first to generate the database.")
-    app.run(host="0.0.0.0", port=5000)
+  // ── init ─────────────────────────────────────────────────────────────────
+  (async () => {
+    await checkStatus();
+    await Promise.all([
+      loadSummary(),
+      loadSentimentChart(),
+      loadBoardChart(),
+      loadKeywordsChart(),
+      loadPostersChart(),
+      loadPosts(),
+    ]);
+  })();
+</script>
+</body>
+</html>

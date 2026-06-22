@@ -37,6 +37,15 @@ def index():
 def serve_data_files(filename):
     return send_from_directory(DATA_DIR, filename)
 
+# ── THIS ROUTE WAS MISSING FROM web_dashboard.py ──────────────────────────
+@app.route("/api/status")
+def api_status():
+    """Check database connection status."""
+    return jsonify({
+        "db_found": db_exists(),
+        "db_path": DB_PATH
+    })
+# ──────────────────────────────────────────────────────────────────────────
 
 @app.route("/api/summary")
 def api_summary():
@@ -147,7 +156,6 @@ def api_search():
         """, (query,))
         rows = [dict(r) for r in cur.fetchall()]
     except sqlite3.OperationalError:
-        # fall back to LIKE search if FTS query syntax fails
         cur.execute("""
             SELECT post_id, board, title, author, push_count, boo_count, sentiment
             FROM posts WHERE title LIKE ? OR content LIKE ?
@@ -243,6 +251,7 @@ def api_top_posters():
     conn.close()
     return jsonify(rows)
 
+
 @app.route("/api/stats")
 def get_stats():
     if not os.path.exists(JSON_PATH):
@@ -251,6 +260,7 @@ def get_stats():
         data = json.load(f)
     return jsonify({"total_posts": len(data)})
 
+
 @app.route("/api/csv")
 def get_csv_data():
     if not os.path.exists(CSV_PATH):
@@ -258,9 +268,9 @@ def get_csv_data():
     df = pd.read_csv(CSV_PATH)
     return df.to_json(orient="records")
 
+
 if __name__ == "__main__":
     if not db_exists():
         print(f"Warning: {DB_PATH} not found.")
         print("Run python3 ptt_analyzer.py first to generate the database.")
     app.run(host="0.0.0.0", port=5000)
-    
