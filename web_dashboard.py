@@ -8,33 +8,30 @@ Run with: python3 web_dashboard.py
 Then open: http://127.0.0.1:5000
 """
 
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify, request, send_from_directory
 import sqlite3
 import os
 
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ptt_data.db")
+DATA_DIR = os.environ.get("DATA_DIR", ".")
+DB_PATH = os.path.join(DATA_DIR, "ptt_data.db")
 
 app = Flask(__name__)
-
 
 def get_connection():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
 
-
 def db_exists():
     return os.path.exists(DB_PATH)
-
 
 @app.route("/")
 def index():
     return render_template("dashboard.html")
 
-
-@app.route("/api/status")
-def api_status():
-    return jsonify({"db_found": db_exists(), "db_path": DB_PATH})
+@app.route("/data/<filename>")
+def serve_data_files(filename):
+    return send_from_directory(DATA_DIR, filename)
 
 
 @app.route("/api/summary")
@@ -242,9 +239,9 @@ def api_top_posters():
     conn.close()
     return jsonify(rows)
 
-
 if __name__ == "__main__":
     if not db_exists():
-        print("Warning: ptt_data.db not found.")
+        print(f"Warning: {DB_PATH} not found.")
         print("Run python3 ptt_analyzer.py first to generate the database.")
-    app.run(debug=True, port=5000)
+    app.run(host="0.0.0.0", port=5000)
+    

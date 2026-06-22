@@ -24,17 +24,21 @@ import csv
 import time
 import re
 import threading
+import os
 from functools import wraps
 from datetime import datetime
 from collections import Counter
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib
+
 matplotlib.use("Agg")
 matplotlib.rcParams["font.sans-serif"] = ["Noto Sans CJK JP", "Noto Sans CJK SC", "DejaVu Sans"]
 matplotlib.rcParams["axes.unicode_minus"] = False
 
-DB_PATH = "ptt_data.db"
+DATA_DIR = os.environ.get("DATA_DIR", ".")
+os.makedirs(DATA_DIR, exist_ok=True)
+DB_PATH = os.path.join(DATA_DIR, "ptt_data.db")
 PTT_BASE_URL = "https://www.ptt.cc"
 
 
@@ -330,6 +334,8 @@ class PTTCrawler:
         return boards
 
 
+
+
 # ---------------------------------------------------------------------------
 # Sample data generator (used when live crawling is blocked or for demo/test)
 # ---------------------------------------------------------------------------
@@ -537,12 +543,16 @@ class Database:
         cur.execute("SELECT keyword, SUM(frequency) as total FROM keywords GROUP BY keyword ORDER BY total DESC")
         return cur.fetchall()
 
-    def export_json(self, path="export.json"):
+    def export_json(self, path=None):
+        if path is None:
+            path = os.path.join(DATA_DIR, "export.json")
         posts = self.get_all_posts()
         with open(path, "w", encoding="utf-8") as f:
             json.dump(posts, f, ensure_ascii=False, indent=2)
 
-    def export_csv(self, path="export.csv"):
+    def export_csv(self, path=None):
+        if path is None:
+            path = os.path.join(DATA_DIR, "export.csv")
         posts = self.get_all_posts()
         if not posts:
             return
@@ -700,7 +710,7 @@ class Visualizer:
 
     def __init__(self, analyzer, output_dir="."):
         self.analyzer = analyzer
-        self.output_dir = output_dir
+        self.output_dir = output_dir or DATA_DIR
 
     def plot_posting_activity_heatmap(self, filename="heatmap.png"):
         pivot = self.analyzer.activity_heatmap_data()
