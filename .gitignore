@@ -217,3 +217,10 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 ptt_data.db
+heatmap.png
+export.json
+export.csv
+sentiment.png
+keyword_trend.png
+top_posters.png
+board_comparison.png
