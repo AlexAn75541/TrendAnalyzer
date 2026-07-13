@@ -146,7 +146,7 @@ class Post:
         else:
             self.neutral_count += 1
 
-    def sentiment_score(self):
+    def sentiment_score(self):  # mood
         """Calculate sentiment from push/boo ratio. Range -1.0 (all boo) to 1.0 (all push)."""
         total = self.push_count + self.boo_count
         if total == 0:
