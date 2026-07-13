@@ -337,10 +337,10 @@ class PTTCrawler:
 
 
 # ---------------------------------------------------------------------------
-# Sample data generator (used when live crawling is blocked or for demo/test)
+# Sample data generator (in used because live crawling is rate limited or for demo/testing purposes)
 # ---------------------------------------------------------------------------
 
-def generate_sample_data(board_names):
+def fallback_sample_data(board_names):
     """
     Build a set of Board objects with realistic sample posts.
     Use this for testing the pipeline without needing live network access to PTT.
@@ -805,7 +805,7 @@ def run_pipeline(boards_to_crawl=("Gossiping", "Tech_Job", "Soft_Job"), use_samp
 
     print("Step 1: Crawling boards...")
     if use_sample_data:
-        boards = generate_sample_data(boards_to_crawl)
+        boards = fallback_sample_data(boards_to_crawl)
     else:
         crawler = PTTCrawler()
         boards = crawler.crawl_boards_multithreaded(boards_to_crawl, max_pages=max_pages)
