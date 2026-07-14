@@ -43,7 +43,7 @@ PTT_BASE_URL = "https://www.ptt.cc"
 
 
 # ---------------------------------------------------------------------------
-# Decorators: rate limiting and caching
+# rate limiting and caching
 # ---------------------------------------------------------------------------
 
 def rate_limit(seconds=2.0):
@@ -708,7 +708,7 @@ class TrendAnalyzer:
 
 
 # ---------------------------------------------------------------------------
-# Visualization: MatPlotLib
+# Visualization: MatPlotLib - > for the pngs and stuff
 # ---------------------------------------------------------------------------
 
 class Visualizer:
