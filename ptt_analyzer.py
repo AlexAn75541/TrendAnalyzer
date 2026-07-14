@@ -46,7 +46,7 @@ PTT_BASE_URL = "https://www.ptt.cc"
 # Decorators: rate limiting and caching
 # ---------------------------------------------------------------------------
 
-def rate_limit(seconds=1.0):
+def rate_limit(seconds=2.0):
     """Decorator that enforces a minimum delay between calls to the wrapped function."""
     def decorator(func):
         last_called = {"time": 0.0}
@@ -179,7 +179,13 @@ class PTTCrawler:
         self.base_url = base_url
         self.session = requests.Session()
         self.session.cookies.set("over18", "1")
-        self.session.headers.update({"User-Agent": "Mozilla/5.0 (PTT-Analyzer/1.0)"})
+        
+        # Cập nhật User-Agent giống hệt trình duyệt thật để đánh lừa Cloudflare
+        self.session.headers.update({
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+            "Accept-Language": "zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7"
+        })
 
     @rate_limit(seconds=1.0)
     def fetch_page(self, url):
@@ -795,7 +801,14 @@ class Visualizer:
 # Main pipeline
 # ---------------------------------------------------------------------------
 
-def run_pipeline(boards_to_crawl=("Gossiping", "Tech_Job", "Soft_Job"), use_sample_data=True, max_pages=2):
+def run_pipeline(boards_to_crawl=("Gossiping", "Tech_Job", "Soft_Job"), use_sample_data=False, max_pages=2):
+    
+    if os.path.exists(DB_PATH):
+        os.remove(DB_PATH)
+        print(f"Cleaned up old database at {DB_PATH} to prevent data accumulation.")
+        
+    db = Database()
+    # ... rest of the pipeline code stays the same ...
     """
     Run the full pipeline: crawl, store, process, analyze, visualize.
     Set use_sample_data=False to attempt a live crawl of PTT
